@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Remover caracteres especiais (.c / .h) — UTF-8</title>
+  <title>Remover caracteres especiais (.c / .h) — UTF-8 / Windows-1252</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#111826; --panel2:#0f1623; --text:#e6edf3; --muted:#9fb1c1;
@@ -21,7 +21,6 @@
     }
 
     *{box-sizing:border-box}
-
     html, body{ height:100%; overflow:hidden; }
 
     body{
@@ -123,6 +122,7 @@
       transition:.15s ease;
       user-select:none;
       flex:0 0 auto;
+      white-space:nowrap;
     }
     .btn:hover{background: rgba(255,255,255,.10)}
     .btn.primary{
@@ -278,10 +278,12 @@
 <body>
   <div class="app">
     <header>
-      <h1>Remover caracteres especiais (Português) — arquivos <span class="kbd">.c</span> e <span class="kbd">.h</span></h1>
+      <h1>Remover caracteres especiais (Português) — <span class="kbd">.c</span> / <span class="kbd">.h</span></h1>
       <p class="sub">
-        Converte <strong>somente em comentários</strong> (<span class="kbd">//</span> e <span class="kbd">/* */</span>).
-        Também trata <strong>acentos soltos</strong> (<span class="kbd">´ ^ ~ ¨</span>): <span class="kbd">`</span> e <span class="kbd">´</span> viram <span class="kbd">'</span>.
+        Conversão <strong>somente em comentários</strong> (<span class="kbd">//</span> e <span class="kbd">/* */</span>).
+        Heurística de encoding: se houver não-ASCII “estranho”, tentamos <span class="kbd">Windows-1252</span>.
+        Se confirmado, você poderá baixar o resultado em <strong>UTF-8</strong> e em <strong>Windows-1252</strong>.
+        Acentos soltos (<span class="kbd">´ ^ ~ ¨</span> e <span class="kbd">`</span>): <span class="kbd">`</span>/<span class="kbd">´</span> viram <span class="kbd">'</span>.
       </p>
     </header>
 
@@ -312,21 +314,21 @@
             <thead>
               <tr>
                 <th>Arquivo</th>
-                <th>Tamanho</th>
+                <th>Encoding detectado</th>
                 <th>Convertidos (comentários)</th>
-                <th>Não-ASCII restantes</th>
-                <th>Status</th>
+                <th>Não-ASCII</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="6" class="emptyrow">Nenhum arquivo carregado ainda.</td></tr>
+              <tr><td colspan="5" class="emptyrow">Nenhum arquivo carregado ainda.</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="foot">
-          Clique em uma linha para ver o preview. O botão <strong>Baixar</strong> só habilita se houver conversão.
+          ✅ “Encoding detectado” pode ser <strong>UTF-8</strong> ou <strong>Provável Windows-1252</strong>.
+          Se for 1252, o download oferecerá <strong>UTF-8</strong> e <strong>1252</strong>.
         </div>
       </section>
 
@@ -339,6 +341,7 @@
           </div>
           <div class="row">
             <span class="pill" id="selInfo">Nenhum arquivo selecionado</span>
+            <span class="pill" id="encInfo">—</span>
           </div>
         </div>
 
@@ -371,28 +374,52 @@
 
   <script>
     // ----------------------------
-    // Conversão PT por caractere + acentos soltos
+    // “Especiais do português” + acentos soltos
     // ----------------------------
     const LOOSE_ACCENT_SET = new Set(["´","`","^","~","¨"]);
+    const DIACRITICS_RE = /[\u0300-\u036f]/g;
+
+    function isPortugueseSpecialChar(ch){
+      // acentos soltos
+      if (LOOSE_ACCENT_SET.has(ch)) return true;
+      // º/ª
+      if (ch === "º" || ch === "ª") return true;
+      // letras com diacríticos (á, ã, ç, ü, etc.)
+      if (ch.codePointAt(0) > 127){
+        const base = ch.normalize("NFD").replace(DIACRITICS_RE, "");
+        if (base !== ch) return true;
+      }
+      return false;
+    }
+
+    function countNonAscii(text){
+      let c=0;
+      for (const ch of text) if (ch.codePointAt(0) > 127) c++;
+      return c;
+    }
+
+    function countPortugueseSpecials(text){
+      let c=0;
+      for (const ch of text) if (isPortugueseSpecialChar(ch)) c++;
+      return c;
+    }
+
+    // ----------------------------
+    // Conversão PT por caractere (comentários) + acentos soltos
+    // ----------------------------
     function convertLooseAccent(ch){
-      // regra pedida:
-      // ` e ´ -> '
+      // regra pedida: ` e ´ -> '
       if (ch === "`" || ch === "´") return "'";
-      // demais: mantém (mas contam como "special" se você quiser visualizar)
+      // outros acentos soltos ficam como estão (mas seguem sendo “não-ASCII”)
       return ch;
     }
 
     function convertPtChar(ch){
-      // acentos soltos primeiro
       if (LOOSE_ACCENT_SET.has(ch)) return convertLooseAccent(ch);
 
-      // normalização (remove diacríticos de letras)
-      let out = ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-      // extras comuns
+      let out = ch.normalize("NFD").replace(DIACRITICS_RE, "");
       if (out === "º") out = "o";
       else if (out === "ª") out = "a";
-
       return out;
     }
 
@@ -400,7 +427,7 @@
      * Converte SOMENTE dentro de comentários C:
      * - // ... \n
      * - /* ... *\/
-     * E trata strings/chars apenas para não confundir delimitadores de comentário dentro deles.
+     * Trata strings/chars apenas para não confundir delimitadores de comentário dentro deles.
      */
     function stripPortugueseSpecialsOnlyInComments(text){
       const S = { NORMAL:0, STRING:1, CHAR:2, LINE_COMMENT:3, BLOCK_COMMENT:4 };
@@ -416,16 +443,8 @@
           if (ch === '"'){ out.push(ch); state = S.STRING; continue; }
           if (ch === "'"){ out.push(ch); state = S.CHAR; continue; }
 
-          if (ch === "/" && next === "/"){
-            out.push(ch, next); i++;
-            state = S.LINE_COMMENT;
-            continue;
-          }
-          if (ch === "/" && next === "*"){
-            out.push(ch, next); i++;
-            state = S.BLOCK_COMMENT;
-            continue;
-          }
+          if (ch === "/" && next === "/"){ out.push(ch, next); i++; state = S.LINE_COMMENT; continue; }
+          if (ch === "/" && next === "*"){ out.push(ch, next); i++; state = S.BLOCK_COMMENT; continue; }
 
           out.push(ch);
           continue;
@@ -452,11 +471,7 @@
         }
 
         if (state === S.LINE_COMMENT){
-          if (ch === "\n"){
-            out.push(ch);
-            state = S.NORMAL;
-            continue;
-          }
+          if (ch === "\n"){ out.push(ch); state = S.NORMAL; continue; }
           const conv = convertPtChar(ch);
           out.push(conv);
           if (conv !== ch) changed++;
@@ -464,11 +479,7 @@
         }
 
         if (state === S.BLOCK_COMMENT){
-          if (ch === "*" && next === "/"){
-            out.push(ch, next); i++;
-            state = S.NORMAL;
-            continue;
-          }
+          if (ch === "*" && next === "/"){ out.push(ch, next); i++; state = S.NORMAL; continue; }
           const conv = convertPtChar(ch);
           out.push(conv);
           if (conv !== ch) changed++;
@@ -480,13 +491,89 @@
     }
 
     // ----------------------------
-    // Utilitários / preview
+    // Decodificação: UTF-8 vs Windows-1252 (heurística)
     // ----------------------------
-    function countNonAscii(text){
-      let c=0;
-      for (const ch of text) if (ch.codePointAt(0) > 127) c++;
-      return c;
+    const utf8Decoder = new TextDecoder("utf-8", { fatal: false });
+    const cp1252Decoder = new TextDecoder("windows-1252", { fatal: false });
+
+    function decodeSmart(bytes){
+      const utf8 = utf8Decoder.decode(bytes);
+      const nonAsciiUtf8 = countNonAscii(utf8);
+      const ptUtf8 = countPortugueseSpecials(utf8);
+
+      // gatilho do usuário: tem não-ascii mas nenhum é "especial do português"
+      if (nonAsciiUtf8 > 0 && ptUtf8 === 0){
+        const cp1252 = cp1252Decoder.decode(bytes);
+        const nonAscii1252 = countNonAscii(cp1252);
+        const pt1252 = countPortugueseSpecials(cp1252);
+
+        if (pt1252 > 0){
+          return {
+            text: cp1252,
+            encoding: "windows-1252",
+            reason: "Não-ASCII sem especiais PT em UTF-8; em 1252 aparecem especiais PT.",
+            stats: { nonAsciiUtf8, ptUtf8, nonAscii1252, pt1252 }
+          };
+        }
+      }
+
+      return {
+        text: utf8,
+        encoding: "utf-8",
+        reason: (nonAsciiUtf8 > 0 && ptUtf8 > 0)
+          ? "UTF-8 contém especiais do português."
+          : "Nenhuma evidência forte de 1252 (assumindo UTF-8).",
+        stats: { nonAsciiUtf8, ptUtf8 }
+      };
     }
+
+    // ----------------------------
+    // Encoder Windows-1252 (para download)
+    // - Como o resultado tende a ficar ASCII, isso é suficiente.
+    // ----------------------------
+    const CP1252_MAP = new Map([
+      // ASCII (0x00-0x7F) é direto, não precisa mapear aqui
+
+      // 0x80-0x9F (pontuação típica do Word/Windows)
+      ["€",0x80], ["‚",0x82], ["ƒ",0x83], ["„",0x84], ["…",0x85], ["†",0x86], ["‡",0x87],
+      ["ˆ",0x88], ["‰",0x89], ["Š",0x8A], ["‹",0x8B], ["Œ",0x8C], ["Ž",0x8E],
+      ["‘",0x91], ["’",0x92], ["“",0x93], ["”",0x94], ["•",0x95], ["–",0x96], ["—",0x97],
+      ["˜",0x98], ["™",0x99], ["š",0x9A], ["›",0x9B], ["œ",0x9C], ["ž",0x9E], ["Ÿ",0x9F],
+
+      // 0xA0-0xFF (Latin-1 compatível)
+      [" ",0xA0], ["¡",0xA1], ["¢",0xA2], ["£",0xA3], ["¤",0xA4], ["¥",0xA5], ["¦",0xA6], ["§",0xA7],
+      ["¨",0xA8], ["©",0xA9], ["ª",0xAA], ["«",0xAB], ["¬",0xAC], ["­",0xAD], ["®",0xAE], ["¯",0xAF],
+      ["°",0xB0], ["±",0xB1], ["²",0xB2], ["³",0xB3], ["´",0xB4], ["µ",0xB5], ["¶",0xB6], ["·",0xB7],
+      ["¸",0xB8], ["¹",0xB9], ["º",0xBA], ["»",0xBB], ["¼",0xBC], ["½",0xBD], ["¾",0xBE], ["¿",0xBF],
+      ["À",0xC0], ["Á",0xC1], ["Â",0xC2], ["Ã",0xC3], ["Ä",0xC4], ["Å",0xC5], ["Æ",0xC6], ["Ç",0xC7],
+      ["È",0xC8], ["É",0xC9], ["Ê",0xCA], ["Ë",0xCB], ["Ì",0xCC], ["Í",0xCD], ["Î",0xCE], ["Ï",0xCF],
+      ["Ð",0xD0], ["Ñ",0xD1], ["Ò",0xD2], ["Ó",0xD3], ["Ô",0xD4], ["Õ",0xD5], ["Ö",0xD6], ["×",0xD7],
+      ["Ø",0xD8], ["Ù",0xD9], ["Ú",0xDA], ["Û",0xDB], ["Ü",0xDC], ["Ý",0xDD], ["Þ",0xDE], ["ß",0xDF],
+      ["à",0xE0], ["á",0xE1], ["â",0xE2], ["ã",0xE3], ["ä",0xE4], ["å",0xE5], ["æ",0xE6], ["ç",0xE7],
+      ["è",0xE8], ["é",0xE9], ["ê",0xEA], ["ë",0xEB], ["ì",0xEC], ["í",0xED], ["î",0xEE], ["ï",0xEF],
+      ["ð",0xF0], ["ñ",0xF1], ["ò",0xF2], ["ó",0xF3], ["ô",0xF4], ["õ",0xF5], ["ö",0xF6], ["÷",0xF7],
+      ["ø",0xF8], ["ù",0xF9], ["ú",0xFA], ["û",0xFB], ["ü",0xFC], ["ý",0xFD], ["þ",0xFE], ["ÿ",0xFF],
+    ]);
+
+    function encodeWindows1252(str){
+      const bytes = new Uint8Array(str.length); // ok porque cp1252 é 1-byte por char
+      for (let i=0; i<str.length; i++){
+        const ch = str[i];
+        const code = ch.codePointAt(0);
+
+        if (code <= 0x7F){
+          bytes[i] = code;
+        } else {
+          const mapped = CP1252_MAP.get(ch);
+          bytes[i] = (mapped !== undefined) ? mapped : 0x3F; // '?'
+        }
+      }
+      return bytes;
+    }
+
+    // ----------------------------
+    // Preview helpers
+    // ----------------------------
     function humanSize(bytes){
       const u=["B","KB","MB","GB"];
       let i=0, v=bytes;
@@ -622,6 +709,7 @@
       afterMarks: document.getElementById("afterMarks"),
 
       selInfo: document.getElementById("selInfo"),
+      encInfo: document.getElementById("encInfo"),
       beforeStat: document.getElementById("beforeStat"),
       afterStat: document.getElementById("afterStat"),
     };
@@ -629,10 +717,15 @@
     setupScrollSync(el.beforePre, el.afterPre);
 
     function fileKey(f){ return `${f.name}__${f.size}__${f.lastModified}`; }
-    async function readFileUtf8(file){ return await file.text(); }
 
     function updateButtons(){
       el.btnClear.disabled = (state.files.size === 0);
+    }
+
+    async function readFileSmart(file){
+      const bytes = await file.arrayBuffer();
+      const decoded = decodeSmart(bytes);
+      return { bytes, ...decoded };
     }
 
     async function addFiles(fileList){
@@ -644,14 +737,24 @@
         const key = fileKey(f);
         if (state.files.has(key)) continue;
 
-        const original = await readFileUtf8(f);
+        const r = await readFileSmart(f);
+        const original = r.text;
 
         const conv = stripPortugueseSpecialsOnlyInComments(original);
         const convertedText = conv.text;
         const convertedCount = conv.changedCount;
-        const nonAsciiAfter = countNonAscii(convertedText);
 
-        state.files.set(key, { file:f, text: original, convertedText, convertedCount, nonAsciiAfter });
+        state.files.set(key, {
+          file: f,
+          originalText: original,
+          convertedText,
+          convertedCount,
+          encodingDetected: r.encoding,
+          encodingReason: r.reason,
+          nonAsciiOriginal: countNonAscii(original),
+          nonAsciiConverted: countNonAscii(convertedText),
+        });
+
         if (!state.selectedKey) state.selectedKey = key;
       }
 
@@ -662,7 +765,7 @@
 
     function renderTable(){
       if (state.files.size === 0){
-        el.tbody.innerHTML = `<tr><td colspan="6" class="emptyrow">Nenhum arquivo carregado ainda.</td></tr>`;
+        el.tbody.innerHTML = `<tr><td colspan="5" class="emptyrow">Nenhum arquivo carregado ainda.</td></tr>`;
         return;
       }
 
@@ -670,21 +773,23 @@
       for (const [key, item] of state.files.entries()){
         const isSel = key === state.selectedKey;
 
-        const statusPill = item.convertedCount > 0
-          ? `<span class="pill warn">Tem conversão</span>`
-          : `<span class="pill ok">Sem conversão</span>`;
+        const encLabel = (item.encodingDetected === "windows-1252")
+          ? `<span class="pill warn" title="${escapeHtml(item.encodingReason)}">Provável 1252</span>`
+          : `<span class="pill ok" title="${escapeHtml(item.encodingReason)}">UTF-8</span>`;
 
-        const dlDisabled = item.convertedCount === 0 ? "disabled" : "";
-        const dlBtn = `<button class="btn good" data-act="download" data-key="${escapeHtml(key)}" ${dlDisabled}>Baixar</button>`;
+        const hasConv = item.convertedCount > 0;
+        const btnUtf8 = `<button class="btn good" data-act="dl-utf8" data-key="${escapeHtml(key)}" ${hasConv ? "" : "disabled"}>Baixar UTF-8</button>`;
+        const btn1252 = (item.encodingDetected === "windows-1252")
+          ? `<button class="btn" data-act="dl-1252" data-key="${escapeHtml(key)}" ${hasConv ? "" : "disabled"}>Baixar 1252</button>`
+          : "";
 
         rows.push(`
           <tr class="${isSel ? "sel" : ""}" data-act="select" data-key="${escapeHtml(key)}">
             <td class="namecell" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</td>
-            <td>${humanSize(item.file.size)}</td>
+            <td>${encLabel}</td>
             <td><strong>${item.convertedCount}</strong></td>
-            <td>${item.nonAsciiAfter}</td>
-            <td>${statusPill}</td>
-            <td>${dlBtn}</td>
+            <td>${item.nonAsciiOriginal} → ${item.nonAsciiConverted}</td>
+            <td>${btnUtf8} ${btn1252}</td>
           </tr>
         `);
       }
@@ -694,6 +799,7 @@
     function renderPreview(){
       if (!state.selectedKey || !state.files.has(state.selectedKey)){
         el.selInfo.textContent = "Nenhum arquivo selecionado";
+        el.encInfo.textContent = "—";
         el.beforePre.innerHTML = "";
         el.afterPre.innerHTML = "";
         el.beforeMarks.innerHTML = "";
@@ -702,21 +808,31 @@
         el.afterStat.textContent = "—";
         el.beforeStat.className = "pill";
         el.afterStat.className = "pill";
+        el.encInfo.className = "pill";
         return;
       }
 
       const item = state.files.get(state.selectedKey);
       el.selInfo.textContent = item.file.name;
 
-      const beforeNonAscii = countNonAscii(item.text);
-      el.beforeStat.textContent = `Não-ASCII: ${beforeNonAscii}`;
+      if (item.encodingDetected === "windows-1252"){
+        el.encInfo.textContent = "Provável Windows-1252 (download UTF-8 + 1252)";
+        el.encInfo.className = "pill warn";
+        el.encInfo.title = item.encodingReason;
+      } else {
+        el.encInfo.textContent = "UTF-8";
+        el.encInfo.className = "pill ok";
+        el.encInfo.title = item.encodingReason;
+      }
+
+      el.beforeStat.textContent = `Não-ASCII (orig): ${item.nonAsciiOriginal}`;
       el.afterStat.textContent  = `Convertidos: ${item.convertedCount}`;
 
-      el.beforeStat.className = `pill ${beforeNonAscii > 0 ? "warn" : "ok"}`;
+      el.beforeStat.className = `pill ${item.nonAsciiOriginal > 0 ? "warn" : "ok"}`;
       el.afterStat.className  = `pill ${item.convertedCount > 0 ? "warn" : "ok"}`;
 
       const { beforeHTML, afterHTML, changedLines, totalLines } =
-        buildHighlightedHTML(item.text, item.convertedText);
+        buildHighlightedHTML(item.originalText, item.convertedText);
 
       const bTop = el.beforePre.scrollTop, bLeft = el.beforePre.scrollLeft;
       const aTop = el.afterPre.scrollTop,  aLeft = el.afterPre.scrollLeft;
@@ -731,7 +847,7 @@
       el.afterPre.scrollTop  = aTop; el.afterPre.scrollLeft  = aLeft;
     }
 
-    function downloadConverted(key){
+    function downloadUtf8(key){
       const item = state.files.get(key);
       if (!item || item.convertedCount === 0) return;
 
@@ -740,7 +856,24 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = item.file.name;
+      a.download = item.file.name; // mesmo nome, como você pediu
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function download1252(key){
+      const item = state.files.get(key);
+      if (!item || item.convertedCount === 0) return;
+
+      const bytes = encodeWindows1252(item.convertedText);
+      const blob = new Blob([bytes], { type:"text/plain;charset=windows-1252" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = item.file.name; // mesmo nome
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -767,11 +900,14 @@
       const btn = e.target.closest("button[data-act]");
       const row = e.target.closest("tr[data-act]");
 
-      if (btn && btn.dataset.act === "download"){
+      if (btn){
         e.stopPropagation();
-        downloadConverted(btn.dataset.key);
+        const key = btn.dataset.key;
+        if (btn.dataset.act === "dl-utf8") downloadUtf8(key);
+        if (btn.dataset.act === "dl-1252") download1252(key);
         return;
       }
+
       if (row && row.dataset.act === "select"){
         state.selectedKey = row.dataset.key;
         renderTable();
