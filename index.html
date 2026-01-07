@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Remover caracteres especiais (.c / .h) — UTF-8</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#111826; --panel2:#0f1623; --text:#e6edf3; --muted:#9fb1c1;
+      --border:rgba(255,255,255,.12);
+      --ok:#38d9a9; --warn:#ffcc66; --bad:#ff6b6b;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+      --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      --radius:14px;
+
+      --diff-bg: rgba(255, 204, 102, .22);
+      --diff-bd: rgba(255, 204, 102, .40);
+      --diff-fg: var(--text);
+      --mark: rgba(255, 204, 102, .85);
+    }
+
+    *{box-sizing:border-box}
+
+    /* Página sem rolagem */
+    html, body{
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 20% 0%, rgba(31,111,235,.18), transparent 55%),
+        radial-gradient(1000px 700px at 90% 10%, rgba(45,186,78,.14), transparent 55%),
+        var(--bg);
+    }
+
+    .app{
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
+    }
+
+    header{
+      padding: 18px 18px 10px;
+      max-width: 2200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    h1{margin:0 0 6px; font-size:22px; font-weight:750; letter-spacing:.2px}
+    .sub{margin:0; color:var(--muted); line-height:1.35; font-size:14px}
+
+    main{
+      max-width: 2200px;
+      width: 100%;
+      margin:0 auto;
+      padding: 12px 18px 18px;
+      display:grid;
+      grid-template-columns: 1fr 2fr;
+      gap:14px;
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    @media (max-width: 980px){
+      main{
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+    }
+    @media (min-width: 2000px){
+      header{max-width: 2600px;}
+      main{max-width: 2600px;}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 60%), var(--panel);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+    }
+
+    .card.preview{
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .hd{
+      padding:12px 12px 10px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      min-width: 0;
+    }
+    .title{display:flex; flex-direction:column; gap:2px; min-width:0}
+    .title strong{font-size:13px; letter-spacing:.2px}
+    .title span{color:var(--muted); font-size:12px}
+
+    .drop{padding:14px}
+    .dropzone{
+      border:1px dashed rgba(255,255,255,.22);
+      border-radius:12px;
+      background: rgba(255,255,255,.03);
+      padding:16px;
+      display:grid; gap:10px;
+      transition:.15s ease;
+      min-width: 0;
+    }
+    .dropzone.dragover{
+      border-color: rgba(31,111,235,.8);
+      background: rgba(31,111,235,.10);
+      transform: translateY(-1px);
+    }
+    .dropzone p{margin:0; color:var(--muted); font-size:13px; line-height:1.35}
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; min-width: 0}
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      border-radius:10px;
+      padding:9px 12px;
+      font-weight:650;
+      font-size:13px;
+      cursor:pointer;
+      transition:.15s ease;
+      user-select:none;
+      flex: 0 0 auto;
+    }
+    .btn:hover{background: rgba(255,255,255,.10)}
+    .btn.primary{
+      background: rgba(31,111,235,.20);
+      border-color: rgba(31,111,235,.55);
+    }
+    .btn.primary:hover{background: rgba(31,111,235,.28)}
+    .btn.good{
+      background: rgba(45,186,78,.18);
+      border-color: rgba(45,186,78,.45);
+    }
+    .btn.good:hover{background: rgba(45,186,78,.25)}
+    .btn:disabled{opacity:.45; cursor:not-allowed}
+    input[type="file"]{display:none}
+
+    .files-body{
+      overflow: auto;
+      min-height: 0;
+    }
+
+    table{width:100%; border-collapse:collapse; font-size:13px}
+    th,td{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      vertical-align:middle;
+      white-space:nowrap;
+    }
+    th{
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(17,24,38,.92);
+      backdrop-filter: blur(6px);
+      text-align:left;
+      color:var(--muted);
+      font-weight:700;
+      font-size:12px;
+      letter-spacing:.25px;
+      text-transform:uppercase;
+    }
+    tr.sel{background: rgba(255,255,255,.04)}
+    tr:hover{background: rgba(255,255,255,.03)}
+    .namecell{max-width: 520px; overflow:hidden; text-overflow:ellipsis}
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color:var(--muted);
+      min-width: 0;
+    }
+    .pill.ok{color:var(--ok); border-color: rgba(56,217,169,.35); background: rgba(56,217,169,.10)}
+    .pill.warn{color:var(--warn); border-color: rgba(255,204,102,.35); background: rgba(255,204,102,.10)}
+
+    .previewgrid{
+      min-height: 0;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      padding:12px;
+      background: var(--panel2);
+      overflow: hidden;
+    }
+    @media (max-width: 980px){ .previewgrid{grid-template-columns:1fr} }
+
+    .pane{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+      overflow:hidden;
+      background: rgba(0,0,0,.18);
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .pane .ph{
+      padding:8px 10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      font-size:12px;
+      min-width: 0;
+    }
+
+    pre.code{
+      margin:0;
+      padding:10px 18px 10px 10px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size:12px;
+      line-height:1.35;
+      tab-size:4;
+      white-space: pre;
+      color: var(--text);
+      outline: none;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .diff{
+      background: var(--diff-bg);
+      border: 1px solid var(--diff-bd);
+      border-radius: 4px;
+      padding: 0 1px;
+      color: var(--diff-fg);
+    }
+
+    .marks{
+      position:absolute;
+      top: 34px;
+      bottom: 8px;
+      right: 4px;
+      width: 6px;
+      pointer-events: none;
+      opacity: .95;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
+    }
+    .marks .m{
+      position:absolute;
+      left:0;
+      width: 100%;
+      height: 2px;
+      background: var(--mark);
+      border-radius: 2px;
+      opacity: .95;
+    }
+
+    .foot{
+      padding:10px 12px 12px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+    .emptyrow{padding:14px; color:var(--muted); font-size:13px; line-height:1.4}
+    .kbd{
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 2px 6px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-bottom-color: rgba(255,255,255,.25);
+      border-radius: 6px;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <h1>Remover caracteres especiais (Português) — arquivos <span class="kbd">.c</span> e <span class="kbd">.h</span></h1>
+      <p class="sub">
+        Conversão mais segura: altera <strong>somente dentro de comentários</strong> (<span class="kbd">//</span> e <span class="kbd">/* */</span>).
+        Código e literais (<span class="kbd">"..."</span>/<span class="kbd">'...'</span>) ficam intactos.
+      </p>
+    </header>
+
+    <main>
+      <!-- Files -->
+      <section class="card">
+        <div class="hd">
+          <div class="title">
+            <strong>Arquivos</strong>
+            <span>Selecione ou arraste arquivos .c/.h</span>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="btnPick">Escolher arquivos</button>
+            <button class="btn" id="btnClear" disabled>Limpar</button>
+          </div>
+        </div>
+
+        <div class="drop">
+          <div class="dropzone" id="dropzone">
+            <p><strong>Arraste e solte</strong> aqui, ou clique em <span class="kbd">Escolher arquivos</span>.</p>
+            <p>Aceita múltiplos arquivos. Você pode adicionar mais depois.</p>
+            <input id="fileInput" type="file" multiple accept=".c,.h" />
+          </div>
+        </div>
+
+        <div class="files-body">
+          <table>
+            <thead>
+              <tr>
+                <th>Arquivo</th>
+                <th>Tamanho</th>
+                <th>Convertidos (somente em comentários)</th>
+                <th>Não-ASCII restantes</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="6" class="emptyrow">Nenhum arquivo carregado ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="foot">
+          Clique em uma linha para ver o preview. O botão <strong>Baixar</strong> só habilita se houver conversão.
+        </div>
+      </section>
+
+      <!-- Preview -->
+      <section class="card preview">
+        <div class="hd">
+          <div class="title">
+            <strong>Preview</strong>
+            <span>Antes / Depois (arquivo selecionado)</span>
+          </div>
+          <div class="row">
+            <span class="pill" id="selInfo">Nenhum arquivo selecionado</span>
+          </div>
+        </div>
+
+        <div class="previewgrid">
+          <div class="pane">
+            <div class="ph">
+              <span>Antes (highlight = chars que serão alterados)</span>
+              <span class="pill" id="beforeStat">—</span>
+            </div>
+            <pre class="code" id="beforePre"></pre>
+            <div class="marks" id="beforeMarks"></div>
+          </div>
+
+          <div class="pane">
+            <div class="ph">
+              <span>Depois (highlight = resultado após conversão)</span>
+              <span class="pill" id="afterStat">—</span>
+            </div>
+            <pre class="code" id="afterPre"></pre>
+            <div class="marks" id="afterMarks"></div>
+          </div>
+        </div>
+
+        <div class="foot">
+          Scroll do preview é sincronizado (vertical e horizontal).
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ----------------------------
+    // Conversão PT por caractere
+    // ----------------------------
+    function convertPtChar(ch){
+      let out = ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (out === "º") out = "o";
+      else if (out === "ª") out = "a";
+      return out;
+    }
+
+    /**
+     * Converte caracteres PT SOMENTE dentro de comentários C:
+     * - // ... \n
+     * - /* ... *\/
+     *
+     * Observação: para ser "generalista e seguro", tratamos strings/chars só
+     * para NÃO confundir delimitadores de comentário dentro deles.
+     */
+    function stripPortugueseSpecialsOnlyInComments(text){
+      const S = {
+        NORMAL: 0,
+        STRING: 1,
+        CHAR: 2,
+        LINE_COMMENT: 3,
+        BLOCK_COMMENT: 4
+      };
+
+      let state = S.NORMAL;
+      let out = [];
+      let changed = 0;
+
+      for (let i = 0; i < text.length; i++){
+        const ch = text[i];
+        const next = (i + 1 < text.length) ? text[i + 1] : "";
+
+        if (state === S.NORMAL){
+          // entra em string/char (para não detectar // ou /* dentro deles)
+          if (ch === '"'){ out.push(ch); state = S.STRING; continue; }
+          if (ch === "'"){ out.push(ch); state = S.CHAR; continue; }
+
+          // entra em comentário
+          if (ch === "/" && next === "/"){
+            out.push(ch, next); i++;
+            state = S.LINE_COMMENT;
+            continue;
+          }
+          if (ch === "/" && next === "*"){
+            out.push(ch, next); i++;
+            state = S.BLOCK_COMMENT;
+            continue;
+          }
+
+          // fora de comentário: NÃO converte
+          out.push(ch);
+          continue;
+        }
+
+        if (state === S.STRING){
+          out.push(ch);
+          if (ch === "\\"){
+            if (i + 1 < text.length){ out.push(text[i + 1]); i++; }
+            continue;
+          }
+          if (ch === '"'){ state = S.NORMAL; }
+          continue;
+        }
+
+        if (state === S.CHAR){
+          out.push(ch);
+          if (ch === "\\"){
+            if (i + 1 < text.length){ out.push(text[i + 1]); i++; }
+            continue;
+          }
+          if (ch === "'"){ state = S.NORMAL; }
+          continue;
+        }
+
+        if (state === S.LINE_COMMENT){
+          if (ch === "\n"){
+            out.push(ch);
+            state = S.NORMAL;
+            continue;
+          }
+          const conv = convertPtChar(ch);
+          out.push(conv);
+          if (conv !== ch) changed++;
+          continue;
+        }
+
+        if (state === S.BLOCK_COMMENT){
+          if (ch === "*" && next === "/"){
+            out.push(ch, next); i++;
+            state = S.NORMAL;
+            continue;
+          }
+          const conv = convertPtChar(ch);
+          out.push(conv);
+          if (conv !== ch) changed++;
+          continue;
+        }
+      }
+
+      return { text: out.join(""), changedCount: changed };
+    }
+
+    // ----------------------------
+    // Utilitários / preview
+    // ----------------------------
+    function countNonAscii(text){
+      let c=0;
+      for (const ch of text) if (ch.codePointAt(0) > 127) c++;
+      return c;
+    }
+    function humanSize(bytes){
+      const u=["B","KB","MB","GB"];
+      let i=0, v=bytes;
+      while (v>=1024 && i<u.length-1){ v/=1024; i++; }
+      return `${v.toFixed(i===0?0:1)} ${u[i]}`;
+    }
+    function escapeChar(ch){
+      if (ch==="&") return "&amp;";
+      if (ch==="<") return "&lt;";
+      if (ch===">") return "&gt;";
+      if (ch==='"') return "&quot;";
+      return ch;
+    }
+    function escapeHtml(s){
+      return s.replace(/[&<>"]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[c]));
+    }
+
+    function buildHighlightedHTML(original, converted){
+      const n = Math.min(original.length, converted.length);
+      const before = [];
+      const after  = [];
+      let line = 1;
+      const changedLines = new Set();
+
+      for (let i=0;i<n;i++){
+        const a = original[i];
+        const b = converted[i];
+        if (a === "\n") line++;
+
+        if (a !== b){
+          changedLines.add(line);
+          before.push(`<span class="diff">${escapeChar(a)}</span>`);
+          after.push(`<span class="diff">${escapeChar(b)}</span>`);
+        } else {
+          before.push(escapeChar(a));
+          after.push(escapeChar(b));
+        }
+      }
+
+      if (original.length > n){
+        const rest = original.slice(n);
+        for (const ch of rest){
+          if (ch === "\n") line++;
+          changedLines.add(line);
+          before.push(`<span class="diff">${escapeChar(ch)}</span>`);
+        }
+      }
+
+      if (converted.length > n){
+        const rest = converted.slice(n);
+        let line2 = 1;
+        for (let i=0;i<n;i++) if (converted[i] === "\n") line2++;
+        for (const ch of rest){
+          if (ch === "\n") line2++;
+          changedLines.add(line2);
+          after.push(`<span class="diff">${escapeChar(ch)}</span>`);
+        }
+      }
+
+      const totalLines = Math.max(
+        1 + (original.match(/\n/g)?.length ?? 0),
+        1 + (converted.match(/\n/g)?.length ?? 0)
+      );
+
+      return { beforeHTML: before.join(""), afterHTML: after.join(""), changedLines, totalLines };
+    }
+
+    function renderMarks(container, changedLines, totalLines){
+      container.innerHTML = "";
+      if (!changedLines || changedLines.size === 0 || totalLines <= 0) return;
+
+      const MAX_MARKS = 1200;
+      const lines = Array.from(changedLines).sort((a,b)=>a-b);
+      let picked = lines;
+
+      if (lines.length > MAX_MARKS){
+        const step = lines.length / MAX_MARKS;
+        picked = [];
+        for (let i=0;i<MAX_MARKS;i++) picked.push(lines[Math.floor(i*step)]);
+      }
+
+      const frag = document.createDocumentFragment();
+      for (const ln of picked){
+        const m = document.createElement("div");
+        m.className = "m";
+        const pct = (ln - 1) / Math.max(1, (totalLines - 1));
+        m.style.top = `calc(${(pct * 100).toFixed(4)}% - 1px)`;
+        frag.appendChild(m);
+      }
+      container.appendChild(frag);
+    }
+
+    function setupScrollSync(preA, preB){
+      let lock = false;
+
+      function sync(from, to){
+        if (lock) return;
+        lock = true;
+
+        const maxFromTop  = from.scrollHeight - from.clientHeight;
+        const maxToTop    = to.scrollHeight - to.clientHeight;
+        const maxFromLeft = from.scrollWidth - from.clientWidth;
+        const maxToLeft   = to.scrollWidth - to.clientWidth;
+
+        const topRatio  = maxFromTop  > 0 ? (from.scrollTop  / maxFromTop)  : 0;
+        const leftRatio = maxFromLeft > 0 ? (from.scrollLeft / maxFromLeft) : 0;
+
+        to.scrollTop  = topRatio  * (maxToTop  > 0 ? maxToTop  : 0);
+        to.scrollLeft = leftRatio * (maxToLeft > 0 ? maxToLeft : 0);
+
+        lock = false;
+      }
+
+      preA.addEventListener("scroll", () => sync(preA, preB), { passive:true });
+      preB.addEventListener("scroll", () => sync(preB, preA), { passive:true });
+    }
+
+    // ----------------------------
+    // App
+    // ----------------------------
+    const state = { files: new Map(), selectedKey: null };
+
+    const el = {
+      btnPick: document.getElementById("btnPick"),
+      btnClear: document.getElementById("btnClear"),
+      fileInput: document.getElementById("fileInput"),
+      dropzone: document.getElementById("dropzone"),
+      tbody: document.getElementById("tbody"),
+
+      beforePre: document.getElementById("beforePre"),
+      afterPre: document.getElementById("afterPre"),
+      beforeMarks: document.getElementById("beforeMarks"),
+      afterMarks: document.getElementById("afterMarks"),
+
+      selInfo: document.getElementById("selInfo"),
+      beforeStat: document.getElementById("beforeStat"),
+      afterStat: document.getElementById("afterStat"),
+    };
+
+    setupScrollSync(el.beforePre, el.afterPre);
+
+    function fileKey(f){ return `${f.name}__${f.size}__${f.lastModified}`; }
+    async function readFileUtf8(file){ return await file.text(); }
+
+    function updateButtons(){
+      el.btnClear.disabled = (state.files.size === 0);
+    }
+
+    async function addFiles(fileList){
+      const arr = Array.from(fileList || []);
+      const filtered = arr.filter(f => /\.(c|h)$/i.test(f.name));
+      if (!filtered.length) return;
+
+      for (const f of filtered){
+        const key = fileKey(f);
+        if (state.files.has(key)) continue;
+
+        const original = await readFileUtf8(f);
+
+        const conv = stripPortugueseSpecialsOnlyInComments(original);
+        const convertedText = conv.text;
+        const convertedCount = conv.changedCount;
+        const nonAsciiAfter = countNonAscii(convertedText);
+
+        state.files.set(key, { file:f, text: original, convertedText, convertedCount, nonAsciiAfter });
+        if (!state.selectedKey) state.selectedKey = key;
+      }
+
+      renderTable();
+      renderPreview();
+      updateButtons();
+    }
+
+    function renderTable(){
+      if (state.files.size === 0){
+        el.tbody.innerHTML = `<tr><td colspan="6" class="emptyrow">Nenhum arquivo carregado ainda.</td></tr>`;
+        return;
+      }
+
+      const rows = [];
+      for (const [key, item] of state.files.entries()){
+        const isSel = key === state.selectedKey;
+
+        const statusPill = item.convertedCount > 0
+          ? `<span class="pill warn">Tem conversão</span>`
+          : `<span class="pill ok">Sem conversão</span>`;
+
+        const dlDisabled = item.convertedCount === 0 ? "disabled" : "";
+        const dlBtn = `<button class="btn good" data-act="download" data-key="${escapeHtml(key)}" ${dlDisabled}>Baixar</button>`;
+
+        rows.push(`
+          <tr class="${isSel ? "sel" : ""}" data-act="select" data-key="${escapeHtml(key)}">
+            <td class="namecell" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</td>
+            <td>${humanSize(item.file.size)}</td>
+            <td><strong>${item.convertedCount}</strong></td>
+            <td>${item.nonAsciiAfter}</td>
+            <td>${statusPill}</td>
+            <td>${dlBtn}</td>
+          </tr>
+        `);
+      }
+      el.tbody.innerHTML = rows.join("");
+    }
+
+    function renderPreview(){
+      if (!state.selectedKey || !state.files.has(state.selectedKey)){
+        el.selInfo.textContent = "Nenhum arquivo selecionado";
+        el.beforePre.innerHTML = "";
+        el.afterPre.innerHTML = "";
+        el.beforeMarks.innerHTML = "";
+        el.afterMarks.innerHTML = "";
+        el.beforeStat.textContent = "—";
+        el.afterStat.textContent = "—";
+        el.beforeStat.className = "pill";
+        el.afterStat.className = "pill";
+        return;
+      }
+
+      const item = state.files.get(state.selectedKey);
+      el.selInfo.textContent = item.file.name;
+
+      const beforeNonAscii = countNonAscii(item.text);
+      el.beforeStat.textContent = `Não-ASCII: ${beforeNonAscii}`;
+      el.afterStat.textContent  = `Convertidos: ${item.convertedCount}`;
+
+      el.beforeStat.className = `pill ${beforeNonAscii > 0 ? "warn" : "ok"}`;
+      el.afterStat.className  = `pill ${item.convertedCount > 0 ? "warn" : "ok"}`;
+
+      const { beforeHTML, afterHTML, changedLines, totalLines } =
+        buildHighlightedHTML(item.text, item.convertedText);
+
+      const bTop = el.beforePre.scrollTop, bLeft = el.beforePre.scrollLeft;
+      const aTop = el.afterPre.scrollTop,  aLeft = el.afterPre.scrollLeft;
+
+      el.beforePre.innerHTML = beforeHTML;
+      el.afterPre.innerHTML  = afterHTML;
+
+      renderMarks(el.beforeMarks, changedLines, totalLines);
+      renderMarks(el.afterMarks,  changedLines, totalLines);
+
+      el.beforePre.scrollTop = bTop; el.beforePre.scrollLeft = bLeft;
+      el.afterPre.scrollTop  = aTop; el.afterPre.scrollLeft  = aLeft;
+    }
+
+    function downloadConverted(key){
+      const item = state.files.get(key);
+      if (!item || item.convertedCount === 0) return;
+
+      const blob = new Blob([item.convertedText], { type:"text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = item.file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearAll(){
+      state.files.clear();
+      state.selectedKey = null;
+      renderTable();
+      renderPreview();
+      updateButtons();
+    }
+
+    // Events
+    el.btnPick.addEventListener("click", () => el.fileInput.click());
+    el.fileInput.addEventListener("change", async (e) => {
+      await addFiles(e.target.files);
+      el.fileInput.value = "";
+    });
+    el.btnClear.addEventListener("click", () => clearAll());
+
+    el.tbody.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-act]");
+      const row = e.target.closest("tr[data-act]");
+
+      if (btn && btn.dataset.act === "download"){
+        e.stopPropagation();
+        downloadConverted(btn.dataset.key);
+        return;
+      }
+      if (row && row.dataset.act === "select"){
+        state.selectedKey = row.dataset.key;
+        renderTable();
+        renderPreview();
+      }
+    });
+
+    // Drag & drop
+    const dz = el.dropzone;
+    ["dragenter","dragover"].forEach(evt => {
+      dz.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        dz.classList.add("dragover");
+      });
+    });
+    ["dragleave","drop"].forEach(evt => {
+      dz.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        dz.classList.remove("dragover");
+      });
+    });
+    dz.addEventListener("drop", async (e) => {
+      const files = e.dataTransfer?.files;
+      await addFiles(files);
+    });
+
+    // init
+    updateButtons();
+  </script>
+</body>
+</html>
