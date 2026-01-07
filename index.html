@@ -8,7 +8,7 @@
     :root{
       --bg:#0b0f14; --panel:#111826; --panel2:#0f1623; --text:#e6edf3; --muted:#9fb1c1;
       --border:rgba(255,255,255,.12);
-      --ok:#38d9a9; --warn:#ffcc66; --bad:#ff6b6b;
+      --ok:#38d9a9; --warn:#ffcc66;
       --shadow:0 10px 30px rgba(0,0,0,.35);
       --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
       --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
@@ -22,11 +22,7 @@
 
     *{box-sizing:border-box}
 
-    /* Página sem rolagem */
-    html, body{
-      height: 100%;
-      overflow: hidden;
-    }
+    html, body{ height:100%; overflow:hidden; }
 
     body{
       margin:0;
@@ -65,16 +61,12 @@
       align-items: stretch;
       min-height: 0;
     }
-
     @media (max-width: 980px){
-      main{
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr;
-      }
+      main{ grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
     }
     @media (min-width: 2000px){
-      header{max-width: 2600px;}
-      main{max-width: 2600px;}
+      header{max-width:2600px;}
+      main{max-width:2600px;}
     }
 
     .card{
@@ -85,19 +77,16 @@
       overflow:hidden;
       min-width: 0;
       min-height: 0;
-      display: grid;
+      display:grid;
       grid-template-rows: auto auto 1fr auto;
     }
-
-    .card.preview{
-      grid-template-rows: auto 1fr auto;
-    }
+    .card.preview{ grid-template-rows: auto 1fr auto; }
 
     .hd{
       padding:12px 12px 10px;
       border-bottom:1px solid var(--border);
       display:flex; align-items:center; justify-content:space-between; gap:10px;
-      min-width: 0;
+      min-width:0;
     }
     .title{display:flex; flex-direction:column; gap:2px; min-width:0}
     .title strong{font-size:13px; letter-spacing:.2px}
@@ -111,7 +100,7 @@
       padding:16px;
       display:grid; gap:10px;
       transition:.15s ease;
-      min-width: 0;
+      min-width:0;
     }
     .dropzone.dragover{
       border-color: rgba(31,111,235,.8);
@@ -120,7 +109,7 @@
     }
     .dropzone p{margin:0; color:var(--muted); font-size:13px; line-height:1.35}
 
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; min-width: 0}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; min-width:0}
     .btn{
       appearance:none;
       border:1px solid rgba(255,255,255,.15);
@@ -133,7 +122,7 @@
       cursor:pointer;
       transition:.15s ease;
       user-select:none;
-      flex: 0 0 auto;
+      flex:0 0 auto;
     }
     .btn:hover{background: rgba(255,255,255,.10)}
     .btn.primary{
@@ -149,10 +138,7 @@
     .btn:disabled{opacity:.45; cursor:not-allowed}
     input[type="file"]{display:none}
 
-    .files-body{
-      overflow: auto;
-      min-height: 0;
-    }
+    .files-body{ overflow:auto; min-height:0; }
 
     table{width:100%; border-collapse:collapse; font-size:13px}
     th,td{
@@ -162,9 +148,7 @@
       white-space:nowrap;
     }
     th{
-      position: sticky;
-      top: 0;
-      z-index: 1;
+      position:sticky; top:0; z-index:1;
       background: rgba(17,24,38,.92);
       backdrop-filter: blur(6px);
       text-align:left;
@@ -176,7 +160,7 @@
     }
     tr.sel{background: rgba(255,255,255,.04)}
     tr:hover{background: rgba(255,255,255,.03)}
-    .namecell{max-width: 520px; overflow:hidden; text-overflow:ellipsis}
+    .namecell{max-width:520px; overflow:hidden; text-overflow:ellipsis}
 
     .pill{
       display:inline-flex;
@@ -188,32 +172,32 @@
       border:1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.05);
       color:var(--muted);
-      min-width: 0;
+      min-width:0;
     }
     .pill.ok{color:var(--ok); border-color: rgba(56,217,169,.35); background: rgba(56,217,169,.10)}
     .pill.warn{color:var(--warn); border-color: rgba(255,204,102,.35); background: rgba(255,204,102,.10)}
 
     .previewgrid{
-      min-height: 0;
+      min-height:0;
       display:grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns:1fr 1fr;
       gap:10px;
       padding:12px;
       background: var(--panel2);
-      overflow: hidden;
+      overflow:hidden;
     }
-    @media (max-width: 980px){ .previewgrid{grid-template-columns:1fr} }
+    @media (max-width:980px){ .previewgrid{grid-template-columns:1fr} }
 
     .pane{
       border:1px solid rgba(255,255,255,.10);
       border-radius:12px;
       overflow:hidden;
       background: rgba(0,0,0,.18);
-      min-width: 0;
-      min-height: 0;
-      position: relative;
-      display: grid;
-      grid-template-rows: auto 1fr;
+      min-width:0;
+      min-height:0;
+      position:relative;
+      display:grid;
+      grid-template-rows:auto 1fr;
     }
     .pane .ph{
       padding:8px 10px;
@@ -224,22 +208,22 @@
       gap:8px;
       color:var(--muted);
       font-size:12px;
-      min-width: 0;
+      min-width:0;
     }
 
     pre.code{
       margin:0;
       padding:10px 18px 10px 10px;
-      overflow: auto;
-      font-family: var(--mono);
+      overflow:auto;
+      font-family:var(--mono);
       font-size:12px;
       line-height:1.35;
       tab-size:4;
-      white-space: pre;
-      color: var(--text);
-      outline: none;
-      min-width: 0;
-      min-height: 0;
+      white-space:pre;
+      color:var(--text);
+      outline:none;
+      min-width:0;
+      min-height:0;
     }
 
     .diff{
@@ -252,22 +236,22 @@
 
     .marks{
       position:absolute;
-      top: 34px;
-      bottom: 8px;
-      right: 4px;
-      width: 6px;
-      pointer-events: none;
-      opacity: .95;
+      top:34px;
+      bottom:8px;
+      right:4px;
+      width:6px;
+      pointer-events:none;
+      opacity:.95;
       filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
     }
     .marks .m{
       position:absolute;
       left:0;
-      width: 100%;
-      height: 2px;
+      width:100%;
+      height:2px;
       background: var(--mark);
-      border-radius: 2px;
-      opacity: .95;
+      border-radius:2px;
+      opacity:.95;
     }
 
     .foot{
@@ -296,8 +280,8 @@
     <header>
       <h1>Remover caracteres especiais (Português) — arquivos <span class="kbd">.c</span> e <span class="kbd">.h</span></h1>
       <p class="sub">
-        Conversão mais segura: altera <strong>somente dentro de comentários</strong> (<span class="kbd">//</span> e <span class="kbd">/* */</span>).
-        Código e literais (<span class="kbd">"..."</span>/<span class="kbd">'...'</span>) ficam intactos.
+        Converte <strong>somente em comentários</strong> (<span class="kbd">//</span> e <span class="kbd">/* */</span>).
+        Também trata <strong>acentos soltos</strong> (<span class="kbd">´ ^ ~ ¨</span>): <span class="kbd">`</span> e <span class="kbd">´</span> viram <span class="kbd">'</span>.
       </p>
     </header>
 
@@ -329,7 +313,7 @@
               <tr>
                 <th>Arquivo</th>
                 <th>Tamanho</th>
-                <th>Convertidos (somente em comentários)</th>
+                <th>Convertidos (comentários)</th>
                 <th>Não-ASCII restantes</th>
                 <th>Status</th>
                 <th>Ações</th>
@@ -387,46 +371,51 @@
 
   <script>
     // ----------------------------
-    // Conversão PT por caractere
+    // Conversão PT por caractere + acentos soltos
     // ----------------------------
+    const LOOSE_ACCENT_SET = new Set(["´","`","^","~","¨"]);
+    function convertLooseAccent(ch){
+      // regra pedida:
+      // ` e ´ -> '
+      if (ch === "`" || ch === "´") return "'";
+      // demais: mantém (mas contam como "special" se você quiser visualizar)
+      return ch;
+    }
+
     function convertPtChar(ch){
+      // acentos soltos primeiro
+      if (LOOSE_ACCENT_SET.has(ch)) return convertLooseAccent(ch);
+
+      // normalização (remove diacríticos de letras)
       let out = ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      // extras comuns
       if (out === "º") out = "o";
       else if (out === "ª") out = "a";
+
       return out;
     }
 
     /**
-     * Converte caracteres PT SOMENTE dentro de comentários C:
+     * Converte SOMENTE dentro de comentários C:
      * - // ... \n
      * - /* ... *\/
-     *
-     * Observação: para ser "generalista e seguro", tratamos strings/chars só
-     * para NÃO confundir delimitadores de comentário dentro deles.
+     * E trata strings/chars apenas para não confundir delimitadores de comentário dentro deles.
      */
     function stripPortugueseSpecialsOnlyInComments(text){
-      const S = {
-        NORMAL: 0,
-        STRING: 1,
-        CHAR: 2,
-        LINE_COMMENT: 3,
-        BLOCK_COMMENT: 4
-      };
-
+      const S = { NORMAL:0, STRING:1, CHAR:2, LINE_COMMENT:3, BLOCK_COMMENT:4 };
       let state = S.NORMAL;
       let out = [];
       let changed = 0;
 
-      for (let i = 0; i < text.length; i++){
+      for (let i=0; i<text.length; i++){
         const ch = text[i];
-        const next = (i + 1 < text.length) ? text[i + 1] : "";
+        const next = (i+1<text.length) ? text[i+1] : "";
 
         if (state === S.NORMAL){
-          // entra em string/char (para não detectar // ou /* dentro deles)
           if (ch === '"'){ out.push(ch); state = S.STRING; continue; }
           if (ch === "'"){ out.push(ch); state = S.CHAR; continue; }
 
-          // entra em comentário
           if (ch === "/" && next === "/"){
             out.push(ch, next); i++;
             state = S.LINE_COMMENT;
@@ -438,7 +427,6 @@
             continue;
           }
 
-          // fora de comentário: NÃO converte
           out.push(ch);
           continue;
         }
@@ -446,20 +434,20 @@
         if (state === S.STRING){
           out.push(ch);
           if (ch === "\\"){
-            if (i + 1 < text.length){ out.push(text[i + 1]); i++; }
+            if (i+1<text.length){ out.push(text[i+1]); i++; }
             continue;
           }
-          if (ch === '"'){ state = S.NORMAL; }
+          if (ch === '"') state = S.NORMAL;
           continue;
         }
 
         if (state === S.CHAR){
           out.push(ch);
           if (ch === "\\"){
-            if (i + 1 < text.length){ out.push(text[i + 1]); i++; }
+            if (i+1<text.length){ out.push(text[i+1]); i++; }
             continue;
           }
-          if (ch === "'"){ state = S.NORMAL; }
+          if (ch === "'") state = S.NORMAL;
           continue;
         }
 
